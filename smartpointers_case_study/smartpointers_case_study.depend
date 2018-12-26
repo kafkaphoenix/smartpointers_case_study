@@ -1,0 +1,9 @@
+# depslib dependency file v1.0
+1545835653 source:c:\users\sorak\documents\github\smartpointers_case_study\smartpointers_case_study\main.cpp
+	<iostream>
+	<string>
+	<vector>
+	<algorithm>
+	<list>
+	<cmath>
+
