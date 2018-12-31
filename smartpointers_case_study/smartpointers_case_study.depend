@@ -1,9 +1,13 @@
 # depslib dependency file v1.0
-1545835653 source:c:\users\sorak\documents\github\smartpointers_case_study\smartpointers_case_study\main.cpp
+1545901457 source:c:\users\sorak\documents\github\smartpointers_case_study\smartpointers_case_study\main.cpp
 	<iostream>
 	<string>
 	<vector>
 	<algorithm>
 	<list>
-	<cmath>
+
+1545863216 source:c:\users\sorak\documents\github\smartpointers_case_study\smartpointers_case_study\src\engine.cpp
+	"Engine.h"
+
+1545863748 c:\users\sorak\documents\github\smartpointers_case_study\smartpointers_case_study\include\engine.h
 

@@ -12,8 +12,9 @@
 				<Option type="1" />
 				<Option compiler="gcc" />
 				<Compiler>
-					<Add option="-std=c++1y" />
+					<Add option="-std=c++14" />
 					<Add option="-g" />
+					<Add directory="include" />
 				</Compiler>
 			</Target>
 			<Target title="Release">
@@ -23,6 +24,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-O2" />
+					<Add directory="include" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -32,7 +34,11 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="include/Engine.h" />
+		<Unit filename="include/Fridge.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="src/Engine.cpp" />
+		<Unit filename="src/Fridge.cpp" />
 		<Extensions>
 			<code_completion />
 			<envvars />

@@ -40,8 +40,8 @@ int main()
     doesn't deal with copy! Indeed, as is, a SmartPointer copied also copies the underlying
     pointer, so the below code has a bug:*/
     {
-    SmartPointer<int> sp1(new int(42));
-    SmartPointer<int> sp2 = sp1; // now both sp1 and sp2 point to
+    //SmartPointer<int> sp1(new int(42));
+    //SmartPointer<int> sp2 = sp1; // now both sp1 and sp2 point to
     // the same object
     } // sp1 and sp2 are both destroyed, the pointer is deleted twice!
 
@@ -75,7 +75,7 @@ int main()
     course impact this other context. If you don't want this to happen, the way to express it is by
     using a unique_ptr to const :*/
 
-    std::unique_ptr<const House> buildAHouse();
+    //std::unique_ptr<const House> buildAHouse();
     // for some reason, I don't want you
     // to modify the house you're being passed
 
@@ -86,8 +86,8 @@ int main()
     A move can be achieved by returning an std::unique_ptr by value from a function, or explicitly
     in code:*/
 
-    std::unique_ptr<int> p1 = std::make_unique(42);
-    std::unique_ptr<int> p2 = move(p1); // now p2 hold the resource and p1 no longer hold anything
+    /*std::unique_ptr<int> p1 = std::make_unique(42);
+    std::unique_ptr<int> p2 = move(p1); // now p2 hold the resource and p1 no longer hold anything*/
 
     //Raw pointers
 
@@ -98,8 +98,8 @@ int main()
     pass it to an interface. You don’t pass the unique_ptr , nor a reference to it, but rather a
     reference to the pointed to object:*/
 
-     std::unique_ptr<House> house = buildAHouse();
-     renderHouse(*house);
+     /*std::unique_ptr<House> house = buildAHouse();
+     renderHouse(*house);*/
 
      //std::shared_ptr
 
@@ -122,23 +122,23 @@ int main()
     still point to it. For this reason, a weak pointer needs to check if the object it points to
     is still alive. To do this, it has to be copied into to a std::shared_ptr*/
 
-    void useMyWeakPointer(std::weak_ptr<int> wp){
+    /*void useMyWeakPointer(std::weak_ptr<int> wp){
         if (std::shared_ptr<int> sp = wp.lock()){
             // the resource is still here and can be used
         }else{
             // the resource is no longer here
         }
-    }
+    }*/
     //A typical use case for this is about breaking shared_ptr circular references
 
-    struct House
+    /*struct House
     {
         std::shared_ptr<House> neighbour;
     };
     std::shared_ptr<House> house1 = std::make_shared<House>();
     std::shared_ptr<House> house2 = std::make_shared<House>();;
     house1->neighbour = house2;
-    house2->neighbour = house1;
+    house2->neighbour = house1;*/
     /*None of the houses ends up being destroyed at the end of this code, because the shared_ptr s
     points into one another. But if one is a weak_ptr instead, there is no longer a circular
     reference.
@@ -159,10 +159,11 @@ int main()
     constructor. But auto_ptr is inferior to unique_ptr and you shouldn't use it if you have
     access to unique_ptr , because it can lead to erroneous code
     */
-    std::auto_ptr<int> p1(new int(42));
-    std::auto_ptr<int> p2 = p1; // it looks like p2 == p1, but no!
+    //std::auto_ptr<int> p1(new int(42));
+    //std::auto_ptr<int> p2 = p1; // it looks like p2 == p1, but no!
     // p1 is now empty and p2 uses the resource
 
+    //PIMPL IDIOM by using unique_ptr
 
 
     return 0;
