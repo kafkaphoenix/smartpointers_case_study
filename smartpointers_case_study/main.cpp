@@ -87,7 +87,7 @@ int main()
     in code:*/
 
     /*std::unique_ptr<int> p1 = std::make_unique(42);
-    std::unique_ptr<int> p2 = move(p1); // now p2 hold the resource and p1 no longer hold anything*/
+    std::unique_ptr<int> p2 = std::move(p1); // now p2 hold the resource and p1 no longer hold anything*/
 
     //Raw pointers
 
@@ -163,8 +163,112 @@ int main()
     //std::auto_ptr<int> p2 = p1; // it looks like p2 == p1, but no!
     // p1 is now empty and p2 uses the resource
 
-    //PIMPL IDIOM by using unique_ptr
+    //PIMPL IDIOM by using unique_ptr (See Fridge.h and Fridge.cpp)
 
+    //How to Transfer unique_ptr from a set to another set
+
+    /*Given a base class and a derived one. If we want a collection of several objects implementing Base, but that could be of any
+    derived classes and we want to prevent our collection to have duplicates, we could use std::set
+    std::set<std::unique_ptr<Base>>*/
+
+    /*operator== is not used by std::set. Elements a and b are considered equal iff !(a < b) && !(b < a)
+    therefore the comparison between elements of the set will call the operator< of std::unique_ptr ,
+    which compares the memory addresses of the pointers inside them.
+    To implement no logical duplicates, we need to call the operator< on Base (provided that it
+    exists, maybe using an id provided by Base for instance) to compare elements and determines
+    whether they are duplicates. And to make the set use this operator, we need to customize the
+    comparator of the set.
+    std::set supports specifying a comparison function. The default is less which will use operator <
+    to check equality. You can define a custom function to check equality and use that one instead:*/
+
+    /*
+    struct ComparePointee
+    {
+    template<typename T>
+    bool operator()(std::unique_ptr<T> const& up1, std::unique_ptr<T>const& up2)
+    {
+    return *up1 < *up2;
+    }
+    };
+    std::set<std::unique_ptr<int>, ComparePointee> mySet;
+    To avoid writing this type every time we instantiate such a set in code, we can hide its technical
+    aspects behind an alias:
+    template<typename T>
+    using UniquePointerSet = std::set<std::unique_ptr<T>,ComparePointee>;
+
+    UniquePointerSet<Base> source;
+    source.insert(std::make_unique<Derived>());
+
+    To transfer elements efficiently , we use the insert method:
+    destination.insert(begin(source), end(source));
+    But this leads to a compilation error!
+    Indeed, the insert methods attemps to make a copy of the unique_ptr elements.
+    */
+    //C++17's new method on set: merge
+    /*
+    destination.merge(source);
+    This makes destination take over the nodes of the tree inside of source. It's like performing a
+    splicing on lists. So after executing this line, destination has the elements that source had, and
+    source is empty.
+    */
+    //Pre C++17
+    /*
+    We can't use std::move
+    The standard algorithm to move elements from a collection to another collection is std::move .
+    Here is how it works with std::vector :
+    std::vector<std::unique_ptr<Base>> source;
+    source.push_back(std::make_unique<Derived>());
+    std::vector<std::unique_ptr<Base>> destination;
+    std::move(begin(source),end(source),std::back_inserter(destination));
+    after the execution of this line, destination has the elements that source had and source is
+    not empty, but has empty unique_ptr .But if we try this approach with our example we get the
+    same compilation error as in the beginning, some unique_ptr are getting copied (see explanation on Page 23)
+    So before C++17, moving elements from a set doesn't seem to be possible. Something has to
+    give: either moving, or the sets. This leads us to two possible aspects to give up on.
+    22
+    */
+    //Keeping the set but paying up for the copies
+    /*To give up on the move and accepting to copy the elements from a set to another, we need to
+    make a copy of the contents pointed by the unique_ptr s. For this, let's assume that Base has is a
+    polymorphic clone method overridden in Derived :*/
+
+//    class Base
+//    {
+//        public:
+//        virtual std::unique_ptr<Base> cloneBase() const = 0;
+//        // rest of Base...
+//    };
+//    class Derived : public Base
+//    {
+//        public:
+//        std::unique_ptr<Base> cloneBase() const override
+//        {
+//        return std::make_unique<Derived>(*this);
+//        }
+//        // rest of Derived...
+//    };
+
+//    At call site, we can make copies of the unique_ptrs from a set over to the other one, for instance
+//    this way:
+//    auto clone = [](std::unique_ptr<Base> const& pointer){ return
+//    pointer->cloneBase(); };
+//    std::transform(begin(source), end(source), std::inserter(destination,
+//    end(destination)), clone);
+//    std::transform applies the given function to a range and stores the result in another range
+//    A std::insert_iterator which can be used to insert elements into the container c at the position indicated by i.
+//    Or, with a for loop:
+//    for (auto const& pointer : source)
+//    {
+//    destination.insert(pointer->cloneBase());
+//    }
+
+    //Keeping the move and throwing away the set
+    /*The set that doesn't let the move happen is the source set. If you only need the destination to
+    have unique elements, you can replace the source set by a std::vector .
+    Indeed, std::vector does not add a const to the value returned by its iterator*/
+
+
+    //Custom deleters
 
     return 0;
 }
