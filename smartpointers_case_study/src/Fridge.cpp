@@ -25,5 +25,5 @@ forward the calls and manage the life cycle of the impl_ pointer.
 /*
 What makes it work is that pointers only need a forward declaration to compile . For
 this reason, the header file of the Fridge class doesn't need to see the full definition of
-FridgeImpl , and therefore neither do Fridge 's clients.
+FridgeImpl , and therefore neither do Fridge's clients.
 */

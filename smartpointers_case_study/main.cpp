@@ -24,7 +24,7 @@ int main()
     copy except those of pointers which are very cheap. Also, pointers allow to manipulate objects
     polymorphically: a pointer to a base class can in fact point to objects of any derived class*/
 
-    //RAI
+    //RAII
 
     /*The principle of RAII is simple: wrap a resource (a pointer for instance) into an object, and
     dispose of the resource in its destructor. And this is exactly what smart pointers do*/
@@ -36,8 +36,7 @@ int main()
     is also convertible to bool, so that it can be used in an if statement like a pointer. Finally,
     the underlying pointer itself is accessible with a .get() method.*/
 
-    /*it
-    doesn't deal with copy! Indeed, as is, a SmartPointer copied also copies the underlying
+    /*it doesn't deal with copy! Indeed, as is, a SmartPointer copied also copies the underlying
     pointer, so the below code has a bug:*/
     {
     //SmartPointer<int> sp1(new int(42));
@@ -91,7 +90,7 @@ int main()
 
     //Raw pointers
 
-    /*raw pointers and references represent access to an object, but not ownership . In fact,
+    /*raw pointers and references represent access to an object, but not ownership. In fact,
     this is the default way of passing objects to functions and methods:*/
 
     /*This is particularly relevant to note when you hold an object with a unique_ptr and want to
@@ -171,7 +170,7 @@ int main()
     derived classes and we want to prevent our collection to have duplicates, we could use std::set
     std::set<std::unique_ptr<Base>>*/
 
-    /*operator== is not used by std::set. Elements a and b are considered equal iff !(a < b) && !(b < a)
+    /*operator== is not used by std::set. Elements a and b are considered equal iff(if and only if) !(a < b) && !(b < a)
     therefore the comparison between elements of the set will call the operator< of std::unique_ptr ,
     which compares the memory addresses of the pointers inside them.
     To implement no logical duplicates, we need to call the operator< on Base (provided that it
@@ -222,14 +221,14 @@ int main()
     std::move(begin(source),end(source),std::back_inserter(destination));
     after the execution of this line, destination has the elements that source had and source is
     not empty, but has empty unique_ptr .But if we try this approach with our example we get the
-    same compilation error as in the beginning, some unique_ptr are getting copied (see explanation on Page 23)
+    same compilation error as in the beginning, some unique_ptr are getting copied
     So before C++17, moving elements from a set doesn't seem to be possible. Something has to
     give: either moving, or the sets. This leads us to two possible aspects to give up on.
-    22
+
     */
     //Keeping the set but paying up for the copies
     /*To give up on the move and accepting to copy the elements from a set to another, we need to
-    make a copy of the contents pointed by the unique_ptr s. For this, let's assume that Base has is a
+    make a copy of the contents pointed by the unique_ptrs. For this, let's assume that Base has is a
     polymorphic clone method overridden in Derived :*/
 
 //    class Base
@@ -269,6 +268,201 @@ int main()
 
 
     //Custom deleters
+    /*Let's take the example of a House class, that carries its building Instructions with it, which are
+    polymorphic and can be either a Sketch or a full-fledged Blueprint. One way to deal with the life cycle of the Instructions is to store them as a unique_ptr in
+    the House . And say that a copy of the house makes a deep copy of the instructions. We can't bind a unique_ptr to a stack-allocated object, because calling delete on it
+    would cause undefined behaviour. One solution would be to make a copy of the blueprint and allocating it on the heap. This may be
+    OK, or it may be costly. But passing objects allocated on the stack is a legitimate need. We then don't want the House to
+    destroy the Instructions in its destructor when the object comes from the stack. std::unique_ptr can help here*/
+
+    //Seeing the real face of std::unique_ptr
+
+    /*Most of the time, the C++ unique pointer is used as std::unique_ptr<T> . But its complete
+    type has a second template parameter, its deleter:
+    This opens the possibility to use unique pointers for types that have a specific code for disposing
+    of their resources. This happens in legacy code coming from C where a function typically takes
+    care of deallocating an object along with its contents:
+    struct GizmoDeleter
+    {
+    void operator()(Gizmo* p)
+    {
+        oldFunctionThatDeallocatesAGizmo(p);
+    }
+    };
+    using GizmoUniquePtr = std::unique_ptr<Gizmo, GizmoDeleter>;
+    */
+
+    //Using several deleters
+
+    /*Our initial problem was that we wanted the unique_ptr to delete the Instructions, except when
+    they came from the stack in which case we wanted it to leave them alone.
+    The deleter can be customized to delete or not delete, given the situation. For this we can use
+    several deleting functions, all of the same function type (being
+    void(*)(Instructions*) ):
+    The deleting functions are then:
+
+    void deleteInstructions(Instructions* instructions){ delete
+    instructions;}
+    void doNotDeleteInstructions(Instructions* instructions){}
+
+    To use them, the occurrences of std::unique_ptr<Instructions> needs to be replaced
+    with InstructionUniquePtr , and the unique pointers can be constructed this way:
+
+    if (method == BuildingMethod::fromSketch)
+        return House(InstructionsUniquePtr(new Sketch,
+        deleteInstructions));
+    if (method == BuildingMethod::fromBlueprint)
+        return House(InstructionsUniquePtr(new Blueprint,
+        deleteInstructions));
+
+    Except when the parameter comes from the stack, in which case the no-op deleter can be used:
+
+    Blueprint blueprint;
+
+    House house(InstructionsUniquePtr(&blueprint, doNotDeleteInstructions));
+    */
+    /*we should note that if the unique_ptr is moved out of the
+    scope of the stack object, it would point to a resource that doesn't exist any more. Using the
+    unique_ptr after this point causes a memory corruption.*/
+
+    /*if the constructor of House were to take
+    more than one argument then we should declare the construction of the unique_ptr in a
+    separate statement, like this:
+
+    InstructionsUniquePtr instructions(new Sketch, deleteInstructions);
+    return House(move(instructions), getHouseNumber());
+
+    Indeed there could be a memory leak if an exception was thrown (cf Item 17 of Effective C++).
+    And also that when we don't use custom deleters, we shouldn't use new directly, but prefer
+    std::make_unique that lets you pass the arguments for the construction of the pointed-to
+    object.*/
+
+    /*In general, holding an std::unique_ptr means being its owner. And this means that it is OK
+    to modify the pointed-to object. But in the case where the object comes from the stack (or from
+    wherever else when it is passed with the no-op deleter), the unique pointer is just holding a
+    reference to an externally owned object . In this case, you don't want the unique pointer to
+    modify the object, because it would have side effects on the caller, and this would makes the
+    code much more harder to reason about.
+    Therefore, when using this technique make sure to work on pointer to const objects :
+    using InstructionsUniquePtr =
+    std::unique_ptr< const Instructions, void(*)( const
+    Instructions*)>;
+    and the deleters become:
+    void deleteInstructions( const Instructions* instructions){ delete
+    instructions;}
+    void doNotDeleteInstructions( const Instructions* instructions){}
+    This way, the unique pointer can't cause trouble outside of the class. This will save you a sizable
+    amount of debugging.*/
+
+    //A Unique Interface to simplify custom deleters and their ugliness
+
+    /*
+    Use the same interface for all custom deleters on all types .
+    This can be defined in another namespace, a technical one. Let's call this namespace util for
+    the example.
+    Then in this namespace, we write all the common code that creates the custom unique_ptr .
+    Let's call this helper MakeConstUnique for instance. Here is its code:
+    namespace util
+    {
+    template<typename T>
+    void doDelete(const T* p)
+    {
+    delete p;
+    }
+    template<typename T>
+    void doNotDelete(const T* x)
+    {
+    }
+    template<typename T>
+    using CustomUniquePtr = std::unique_ptr<const T, void(*)(const
+    T*)>;
+    template<typename T>
+    auto MakeConstUnique(T* pointer)
+    {
+    return CustomUniquePtr<T>(pointer, doDelete<T>);
+    }
+    template<typename T>
+    auto MakeConstUniqueNoDelete(T* pointer)
+    {
+    return CustomUniquePtr<T>(pointer, doNotDelete<T>);
+    }
+    }
+    With this code, no need to define anything else to start using a unique_ptr on a particular
+    type with custom deleters. For instance, to create an instance of a unique_ptr that does a
+    delete of its resource when it gets out of scope, we write:
+    auto myComputer = util::MakeConstUnique(new
+    store::electronics::gaming::Computer);
+    And to create one that does not delete its resource:
+    auto myComputer = util::MakeConstUniqueNoDelete(new
+    store::electronics::gaming::Computer);
+    What is interesting about this interface is that:
+    there is no longer any mention of delete in the common case,
+    we can now use auto , thanks to the return type of MakeConstUnique .
+    Note that all this made us go down to one occurrence of the namespace of Computer ,
+    instead of three.*/
+
+    //Specific deleters
+
+    /*Now what if, for some reason, we didn't want to call delete on the class Computer, but a
+    particular dedicated function?*/
+
+    /*To keep using MakeConstUnique with this type, we can make a total specialization of this
+    template function for the type Computer . We could do this in the module defining Computer,
+    by reopening the util namespace:
+    namespace util
+    {
+    template<>
+    auto MakeConstUnique(store::electronics::gaming::Computer*
+    pointer)
+    {
+    return
+    CustomUniquePtr<store::electronics::gaming::Computer>(pointer,
+    specificFunctionThatFreesAComputer);
+    }
+    }*/
+
+    //Changes of deleter during the life of an unique_ptr
+
+    /*Here is a toy example we use an unique_ptr on int , with a customisable deleter:
+    using IntDeleter = void(*)(int*);
+    using IntUniquePtr = std::unique_ptr<int, IntDeleter>;
+    One deleter is to be used for even numbers, and another one for odd numbers*/
+
+    /*Consider the following code:
+    IntUniquePtr p1(new int(42), deleteEvenNumber);
+    IntUniquePtr p2(new int(43), deleteOddNumber);
+    p1 = move(p2);*/
+    /*Each resource is deleted with the correct deleter, which means that the assignment did bring
+    over the deleter. This makes sense because the resources would not be disposed of with the
+    correct deleter otherwise.*/
+
+    /*Resetting the pointer
+    Another way to change the resource contained in an std::unique_ptr is to call its reset
+    method, like in the following simple example:
+    std::unique_ptr<int> p1(new int(42));
+    p1.reset(new int(43));
+    The reset method calls the deleter on the current resource (42), and then takes on the new one
+    (43).
+    But the reset method only takes one argument , which is the new resource. It cannot be passed a
+    deleter along with this new resource. For that reason, it can no longer be used directly in our
+    example with even and odd numbers. Indeed, the following code:
+    IntUniquePtr p1(new int(42), deleteEvenNumber);
+    p1.reset(new int(43)); // can't pass deleteOddNumber*/
+
+    /*In fact we could manually change the deleter in a separate statement, by exploiting the fact that
+    the get_deleter method of unique_ptr returns the deleter by non-const reference:
+    p1.get_deleter() = deleteOddNumber;
+    But why doesn't reset have a deleter argument? And how to hand over a new resource to an
+    std::unique_ptr along with its appropriate deleter in a single statement?
+    Howard Hinnant, who is amongst many other things lead designer and author of the
+    std::unique_ptr component, answers this question on Stack Overflow:
+    Here is how to use his answer in our initial example:
+    IntUniquePtr p1(new int(42), deleteEvenNumber);
+    p1 = IntUniquePtr(new int(43), deleteOddNumber);
+    which gives the following desired output*/
+
+
+    //How to Return a Smart Pointer AND Use Covariance
 
     return 0;
 }
