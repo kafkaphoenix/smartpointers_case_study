@@ -463,6 +463,9 @@ int main()
 
 
     //How to Return a Smart Pointer AND Use Covariance
+    /*http://cpptruths.blogspot.com/2015/11/covariance-and-contravariance-in-c.html*/
+    //Use cases: Simple hierarchy, Multiple inheritance, Deep hierarchy, Diamond inheritance (See manual)
+    //https://www.fluentcpp.com/2017/05/12/curiously-recurring-template-pattern/
 
     return 0;
 }
